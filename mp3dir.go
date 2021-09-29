@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,11 +47,39 @@ func rebasePathWithSuffix(path string, srclib string, dstlib string, suffix stri
 	return result, nil
 }
 
+func isAlac(path string) bool {
+	cmd := exec.Command(
+		"ffprobe",
+		"-v", "error",
+		"-select_streams", "a:0",
+		"-show_entries", "stream=codec_name",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		path,
+	)
+
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	codec := strings.TrimSpace(string(out))
+	return codec == "alac"
+}
+
 func transformLibrary(srclib string, dstlib string) []TransformJob {
 	jobs := make([]TransformJob, 0)
 
 	filepath.WalkDir(srclib, func(path string, d fs.DirEntry, err error) error {
-		if !d.IsDir() && filepath.Ext(path) == ".flac" {
+		if d.IsDir() {
+			return nil
+		}
+
+		/* Let's convert FLAC and ALAC files.
+		 * Since ALAC uses .m4a as an extension - thaaaaaanks, Apple -
+		 * we need to check if there is actually an ALAC stream (as opposed to AAC).
+		 */
+		ext := filepath.Ext(path)
+		if ext == ".flac" || (ext == ".m4a" && isAlac(path)) {
 			/* This is a valid track, let's make
 			   a job out of it. */
 			rebasedPath, err := rebasePathWithSuffix(path, srclib, dstlib, ".mp3")
