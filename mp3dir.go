@@ -25,8 +25,8 @@ type TransformJob struct {
 	dest   string
 }
 
-func (t *TransformJob) print() {
-	fmt.Printf("Job (%v):\n <- %s\n -> %s\n", t.action, t.source, t.dest)
+func (t *TransformJob) String() string {
+	return fmt.Sprintf("(%v)\n <= %s\n => %s", t.action, t.source, t.dest)
 }
 
 func rebasePathWithSuffix(path string, srclib string, dstlib string, suffix string) (string, error) {
@@ -122,10 +122,10 @@ func runFFmpeg(source string, dest string) error {
 func runWorker(inbox chan TransformJob, workerID int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	fmt.Printf("[%d] spawned job worker\n", workerID)
+	fmt.Printf("[%d] Spawned job worker!\n", workerID)
 
 	for job := range inbox {
-		fmt.Printf("[%d] got job: %s\n", workerID, job.source)
+		fmt.Printf("[%d] New job: %s\n", workerID, job.String())
 
 		/* TODO: respect job.action */
 		err := runFFmpeg(job.source, job.dest)
