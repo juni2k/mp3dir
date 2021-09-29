@@ -1,7 +1,7 @@
 # mp3dir
 
-mp3dir is a zero-configuration tool for creating a lossy copy of a music
-folder containing lossless music.
+mp3dir is a zero-configuration tool for creating a strictly lossy copy of a music
+folder.
 
 ## Example
 
@@ -17,10 +17,12 @@ Both `ffmpeg` and `ffprobe` need to be in PATH at runtime.
 
 mp3dir will transform files according to the following rules:
 
-| input | transformation    |
-|-------|-------------------|
-| flac  | convert to mp3 v0 |
-| alac  | convert to mp3 v0 |
+| input         | transformation    |
+|---------------|-------------------|
+| flac (.flac)  | convert to mp3 v0 |
+| alac (.m4a)   | convert to mp3 v0 |
+| mp3 (.mp3)    | copy              |
+| aac (.m4a)    | copy              |
 
 ## License
 

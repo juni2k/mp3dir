@@ -29,7 +29,7 @@ func (t *TransformJob) String() string {
 	return fmt.Sprintf("(%v)\n <= %s\n => %s", t.action, t.source, t.dest)
 }
 
-func rebasePathWithSuffix(path string, srclib string, dstlib string, suffix string) (string, error) {
+func rebasePath(path string, srclib string, dstlib string) (string, error) {
 	var result string
 
 	// get track path relative to source folder
@@ -38,11 +38,21 @@ func rebasePathWithSuffix(path string, srclib string, dstlib string, suffix stri
 		return "", err
 	}
 
-	// change suffix
-	result = strings.TrimSuffix(result, filepath.Ext(result)) + suffix
-
 	// rebase relative path into destination folder
 	result = filepath.Join(dstlib, result)
+
+	return result, nil
+}
+
+func rebasePathWithSuffix(path string, srclib string, dstlib string, suffix string) (string, error) {
+	var result string
+
+	result, err := rebasePath(path, srclib, dstlib)
+	if err != nil {
+		return "", err
+	}
+	// change suffix
+	result = strings.TrimSuffix(result, filepath.Ext(result)) + suffix
 
 	return result, nil
 }
@@ -80,8 +90,6 @@ func transformLibrary(srclib string, dstlib string) []TransformJob {
 		 */
 		ext := filepath.Ext(path)
 		if ext == ".flac" || (ext == ".m4a" && isAlac(path)) {
-			/* This is a valid track, let's make
-			   a job out of it. */
 			rebasedPath, err := rebasePathWithSuffix(path, srclib, dstlib, ".mp3")
 			if err != nil {
 				panic(err)
@@ -92,6 +100,22 @@ func transformLibrary(srclib string, dstlib string) []TransformJob {
 				source: path,
 				dest:   rebasedPath,
 			})
+			return nil
+		}
+
+		/* Let's copy lossy files. */
+		if ext == ".mp3" || ext == ".m4a" {
+			rebasedPath, err := rebasePath(path, srclib, dstlib)
+			if err != nil {
+				panic(err)
+			}
+
+			jobs = append(jobs, TransformJob{
+				action: CopyAction,
+				source: path,
+				dest: rebasedPath,
+			})
+			return nil
 		}
 
 		// TODO: handle errors
@@ -119,6 +143,16 @@ func runFFmpeg(source string, dest string) error {
 	return err
 }
 
+func copyFile(source string, dest string) error {
+	b, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(dest, b, 0644)
+	return err
+}
+
 func runWorker(inbox chan TransformJob, workerID int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -127,10 +161,19 @@ func runWorker(inbox chan TransformJob, workerID int, wg *sync.WaitGroup) {
 	for job := range inbox {
 		fmt.Printf("[%d] New job: %s\n", workerID, job.String())
 
-		/* TODO: respect job.action */
-		err := runFFmpeg(job.source, job.dest)
-		if err != nil {
-			fmt.Printf("[%d] ffmpeg error: %v\n", workerID, err)
+		switch job.action {
+		case ConvertAction:
+			err := runFFmpeg(job.source, job.dest)
+			if err != nil {
+				fmt.Printf("[%d] ffmpeg error: %v\n", workerID, err)
+			}
+		case CopyAction:
+			err := copyFile(job.source, job.dest)
+			if err != nil {
+				fmt.Printf("[%d] copy error: %v\n", workerID, err)
+			}
+		default:
+			panic("runWorker: reached default case! This should never happen.")
 		}
 	}
 }
