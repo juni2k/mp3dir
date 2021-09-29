@@ -9,6 +9,10 @@ folder containing lossless music.
 ./mp3dir -i ~/Music -o ~/Music.mp3
 ```
 
+## Dependencies
+
+Both `ffmpeg` and `ffprobe` need to be in PATH at runtime.
+
 ## Transformation matrix
 
 mp3dir will transform files according to the following rules:
